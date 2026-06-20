@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">faz3ah</string>
+    <string name="title_activity_main">faz3ah</string>
+    <string name="package_name">com.faz3ah.app</string>
+    <string name="custom_url_scheme">com.faz3ah.app</string>
+</resources>
