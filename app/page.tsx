@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect } from 'react'
 import Image from 'next/image'
 import Link from 'next/link'
 import { ShoppingCart, LayoutDashboard, ArrowRight, ShoppingBag } from 'lucide-react'
@@ -13,21 +13,25 @@ import { useMenu } from '@/lib/use-menu'
 import { useCart } from '@/lib/use-cart'
 import { SHOPS, CATEGORY_ORDER, CATEGORY_LABELS, type ShopId } from '@/lib/menu-data'
 
-const DEFAULT_BANNERS = [
-  { id: 'default-1', title: "عروض الجمعة البيضاء", description: "خصومات تصل إلى 50%", image: "https://images.unsplash.com/photo-1542838132-92c53300491e?q=80&w=800&auto=format&fit=crop" },
-  { id: 'default-2', title: "مخبوزات طازجة", description: "احصل على خبزك الحار", image: "https://images.unsplash.com/photo-1517433367423-c7e5b0f35086?q=80&w=800&auto=format&fit=crop" },
-]
-
 export default function HomePage() {
   const [showSplash, setShowSplash] = useState(true)
   const [selectedShop, setSelectedShop] = useState<ShopId | null>(null)
   const [cartOpen, setCartOpen] = useState(false)
   const [shopImages, setShopImages] = useState<Record<string, string>>({})
-  const [banners, setBanners] = useState(DEFAULT_BANNERS)
-  const [currentSlide, setCurrentSlide] = useState(0)
+  const [banners, setBanners] = useState<any[]>([])
+  const [currentIndex, setCurrentIndex] = useState(0)
 
   const { menu } = useMenu()
   const { cart, addToCart, removeFromCart, totalPrice } = useCart()
+
+  // التنقل التلقائي للبنرات كل 3 ثواني
+  useEffect(() => {
+    if (banners.length === 0) return
+    const interval = setInterval(() => {
+      setCurrentIndex((prev) => (prev + 1) % banners.length)
+    }, 3000)
+    return () => clearInterval(interval)
+  }, [banners])
 
   useEffect(() => {
     const timer = setTimeout(() => setShowSplash(false), 2200)
@@ -38,15 +42,21 @@ export default function HomePage() {
     const loadData = () => {
       const savedShops = localStorage.getItem('faz3ah_shop_images')
       if (savedShops) try { setShopImages(JSON.parse(savedShops)) } catch (e) { console.error(e) }
+      
+      const savedBanners = localStorage.getItem('faz3ah_custom_banners')
+      if (savedBanners) {
+        try { setBanners(JSON.parse(savedBanners)) } catch (e) { console.error(e) }
+      }
     }
     loadData()
+    window.addEventListener('storage', loadData)
+    return () => window.removeEventListener('storage', loadData)
   }, [])
 
   if (showSplash) return <SplashScreen />
 
   const totalCartItems = cart.reduce((acc, item) => acc + item.quantity, 0)
   const filteredMenu = menu.filter((item) => (item.available ?? true) && (!selectedShop || item.shopId === selectedShop))
-  const currentSelectedShopData = SHOPS.find(s => s.id === selectedShop)
 
   return (
     <main className="mx-auto min-h-screen max-w-2xl bg-[#FDF8F5] pb-32" dir="rtl">
@@ -60,7 +70,6 @@ export default function HomePage() {
             <span className="text-[10px] text-primary-foreground/70">أصالة وفخامة في كل طلب</span>
           </div>
         </div>
-
         <div className="flex items-center gap-1">
           <Button size="icon" variant="ghost" className="size-9 text-primary-foreground/70" onClick={() => window.location.href = '/admin'}>
             <LayoutDashboard className="size-5" />
@@ -71,6 +80,28 @@ export default function HomePage() {
           </Button>
         </div>
       </header>
+
+      {/* قسم السلايدر للبنرات */}
+      {banners.length > 0 && (
+        <section className="px-4 pt-4">
+          <div className="relative h-40 w-full overflow-hidden rounded-2xl shadow-lg">
+            {banners.map((b, index) => (
+              <div key={b.id} className={`absolute inset-0 transition-opacity duration-1000 ${index === currentIndex ? 'opacity-100' : 'opacity-0'}`}>
+                <img src={b.image} alt={b.title} className="h-full w-full object-cover" />
+                <div className="absolute inset-0 bg-black/40 flex flex-col items-center justify-center text-white p-4 text-center">
+                  <h3 className="font-heading text-xl font-800">{b.title}</h3>
+                  {b.description && <p className="text-sm">{b.description}</p>}
+                </div>
+              </div>
+            ))}
+          </div>
+          <div className="flex justify-center gap-2 mt-2">
+            {banners.map((_, index) => (
+              <button key={index} className={`size-2 rounded-full ${index === currentIndex ? 'bg-primary' : 'bg-gray-300'}`} onClick={() => setCurrentIndex(index)} />
+            ))}
+          </div>
+        </section>
+      )}
 
       {!selectedShop ? (
         <section className="px-4 pt-6">
@@ -99,13 +130,9 @@ export default function HomePage() {
           })}
         </div>
       )}
-{/* الفوتر - هذا التنسيق هو اللي كان يظهر الاسم */}
+
       <footer className="w-full pt-16 pb-6 text-center" dir="ltr">
-        <Link 
-          href="https://www.instagram.com/GASS_211" 
-          target="_blank" 
-          className="text-xs font-500 text-muted-foreground/60 hover:text-primary transition-colors duration-300"
-        >
+        <Link href="https://www.instagram.com/GASS_211" target="_blank" className="text-xs font-500 text-muted-foreground/60 hover:text-primary transition-colors duration-300">
           Developer by Mahmoud Al-Ali
         </Link>
       </footer>
