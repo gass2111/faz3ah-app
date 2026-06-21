@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react'
 import Image from 'next/image'
 import Link from 'next/link'
-import { ShoppingCart, LayoutDashboard, ArrowRight, ShoppingBag } from 'lucide-react'
+import { ShoppingCart, LayoutDashboard, ArrowRight, ShoppingBag, Search } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { SplashScreen } from '@/components/splash-screen'
@@ -11,8 +11,7 @@ import { MenuItemCard } from '@/components/menu-item-card'
 import { CartSheet } from '@/components/cart-sheet'
 import { useMenu } from '@/lib/use-menu'
 import { useCart } from '@/lib/use-cart'
-import { SHOPS, CATEGORY_ORDER, CATEGORY_LABELS, type ShopId } from '@/lib/menu-data'
-
+import { SHOPS, CATEGORY_ORDER, CATEGORY_LABELS, type MenuItem } from '@/lib/menu-data'
 export default function HomePage() {
   const [showSplash, setShowSplash] = useState(true)
   const [selectedShop, setSelectedShop] = useState<ShopId | null>(null)
@@ -20,9 +19,17 @@ export default function HomePage() {
   const [shopImages, setShopImages] = useState<Record<string, string>>({})
   const [banners, setBanners] = useState<any[]>([])
   const [currentIndex, setCurrentIndex] = useState(0)
+  
+  // الـ State الخاص بنص البحث
+  const [searchQuery, setSearchQuery] = useState('')
 
   const { menu } = useMenu()
   const { cart, addToCart, removeFromCart, totalPrice } = useCart()
+
+  // تفريغ خانة البحث تلقائياً عند تغيير المحل أو العودة للخلف
+  useEffect(() => {
+    setSearchQuery('')
+  }, [selectedShop])
 
   // التنقل التلقائي للبنرات كل 3 ثواني
   useEffect(() => {
@@ -56,7 +63,15 @@ export default function HomePage() {
   if (showSplash) return <SplashScreen />
 
   const totalCartItems = cart.reduce((acc, item) => acc + item.quantity, 0)
-  const filteredMenu = menu.filter((item) => (item.available ?? true) && (!selectedShop || item.shopId === selectedShop))
+  
+  // تصفية القائمة بناءً على المحل المختار وحالة تفعيل المنتج، إضافةً لتصفية نص البحث
+  const filteredMenu = menu.filter((item) => {
+    const isAvailable = item.available ?? true
+    const matchesShop = !selectedShop || item.shopId === selectedShop
+    const matchesSearch = item.name.toLowerCase().includes(searchQuery.toLowerCase())
+    
+    return isAvailable && matchesShop && matchesSearch
+  })
 
   return (
     <main className="mx-auto min-h-screen max-w-2xl bg-[#FDF8F5] pb-32" dir="rtl">
@@ -83,25 +98,25 @@ export default function HomePage() {
 
       {/* قسم السلايدر للبنرات */}
       {banners.length > 0 && (
-        <section className="px-4 pt-4">
-          <div className="relative h-40 w-full overflow-hidden rounded-2xl shadow-lg">
-            {banners.map((b, index) => (
-              <div key={b.id} className={`absolute inset-0 transition-opacity duration-1000 ${index === currentIndex ? 'opacity-100' : 'opacity-0'}`}>
-                <img src={b.image} alt={b.title} className="h-full w-full object-cover" />
-                <div className="absolute inset-0 bg-black/40 flex flex-col items-center justify-center text-white p-4 text-center">
-                  <h3 className="font-heading text-xl font-800">{b.title}</h3>
-                  {b.description && <p className="text-sm">{b.description}</p>}
-                </div>
-              </div>
-            ))}
-          </div>
-          <div className="flex justify-center gap-2 mt-2">
-            {banners.map((_, index) => (
-              <button key={index} className={`size-2 rounded-full ${index === currentIndex ? 'bg-primary' : 'bg-gray-300'}`} onClick={() => setCurrentIndex(index)} />
-            ))}
-          </div>
-        </section>
-      )}
+  <section className="px-4 pt-4">
+    <div className="relative h-40 w-full overflow-hidden rounded-2xl shadow-lg">
+      {banners.map((b, index) => (
+        <div key={b.id} className={`absolute inset-0 transition-opacity duration-1000 ${index === currentIndex ? 'opacity-100' : 'opacity-0'}`}>
+          {/* الصورة الآن ستكون ساطعة وواضحة تماماً */}
+          <img src={b.image} alt={b.title} className="h-full w-full object-cover" />
+
+          {/* تمت إزالة الـ overlay الأسود والنصوص بالكامل */}
+        </div>
+      ))}
+    </div>
+    {/* ابقي كود مؤشرات النقاط كما هو إذا أردت استمراريتها */}
+    <div className="flex justify-center gap-2 mt-2">
+      {banners.map((_, index) => (
+        <button key={index} className={`size-2 rounded-full ${index === currentIndex ? 'bg-primary' : 'bg-gray-300'}`} onClick={() => setCurrentIndex(index)} />
+      ))}
+    </div>
+  </section>
+)}
 
       {!selectedShop ? (
         <section className="px-4 pt-6">
@@ -117,17 +132,49 @@ export default function HomePage() {
         </section>
       ) : (
         <div className="p-4">
-          <button onClick={() => setSelectedShop(null)} className="mb-4 text-sm font-800 text-primary flex items-center gap-1"><ArrowRight className="size-4" /> عودة</button>
-          {CATEGORY_ORDER.map((cat) => {
-            const items = filteredMenu.filter((i) => i.category === cat)
-            if (items.length === 0) return null
-            return (
-              <div key={cat} className="mb-6">
-                <h2 className="font-heading text-base font-800 mb-3">{CATEGORY_LABELS[cat]}</h2>
-                {items.map((item) => <MenuItemCard key={item.id} item={item} onAdd={addToCart} onRemove={() => removeFromCart(item.id)} quantity={cart.find(c => c.id === item.id)?.quantity || 0} />)}
-              </div>
-            )
-          })}
+          <div className="flex items-center justify-between mb-4">
+            <button onClick={() => setSelectedShop(null)} className="text-sm font-800 text-primary flex items-center gap-1">
+              <ArrowRight className="size-4" /> عودة
+            </button>
+          </div>
+
+          {/* خانة البحث المصممة بتناسق مع التطبيق والدعم للغة العربية */}
+          <div className="relative flex items-center mb-6">
+            <input
+              type="text"
+              placeholder="ابحث عن الأصالة والفخامة..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full px-4 py-2.5 pr-10 text-sm text-right text-foreground bg-card border border-border rounded-full shadow-sm focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all placeholder:text-muted-foreground/60"
+            />
+            <Search className="absolute right-3.5 size-4 text-muted-foreground/60" />
+          </div>
+
+          {/* عرض المنتجات بناءً على الفلترة */}
+          {CATEGORY_ORDER.some(cat => filteredMenu.some(i => i.category === cat)) ? (
+            CATEGORY_ORDER.map((cat) => {
+              const items = filteredMenu.filter((i) => i.category === cat)
+              if (items.length === 0) return null
+              return (
+                <div key={cat} className="mb-6">
+                  <h2 className="font-heading text-base font-800 mb-3">{CATEGORY_LABELS[cat]}</h2>
+                  {items.map((item) => (
+                    <MenuItemCard 
+                      key={item.id} 
+                      item={item} 
+                      onAdd={addToCart} 
+                      onRemove={() => removeFromCart(item.id)} 
+                      quantity={cart.find(c => c.id === item.id)?.quantity || 0} 
+                    />
+                  ))}
+                </div>
+              )
+            })
+          ) : (
+            <div className="text-center py-12 text-sm text-muted-foreground/80 font-500">
+              لا توجد منتجات تطابق بحثك في هذا المحل.
+            </div>
+          )}
         </div>
       )}
 
@@ -140,8 +187,8 @@ export default function HomePage() {
       {totalCartItems > 0 && (
         <div className="fixed inset-x-0 bottom-0 z-40 mx-auto max-w-2xl p-4">
           <Button onClick={() => setCartOpen(true)} className="flex h-14 w-full items-center justify-between rounded-full bg-primary px-6 text-base font-700 text-primary-foreground shadow-xl">
-             <div className="flex items-center gap-2"><ShoppingBag className="size-5 text-gold" /> عرض السلة</div>
-             <div className="flex items-center gap-2"><span>{totalPrice.toFixed(2)} د.أ</span><span className="flex size-7 items-center justify-center rounded-full bg-gold text-sm font-900 text-gold-foreground">{totalCartItems}</span></div>
+              <div className="flex items-center gap-2"><ShoppingBag className="size-5 text-gold" /> عرض السلة</div>
+              <div className="flex items-center gap-2"><span>{totalPrice.toFixed(2)} د.أ</span><span className="flex size-7 items-center justify-center rounded-full bg-gold text-sm font-900 text-gold-foreground">{totalCartItems}</span></div>
           </Button>
         </div>
       )}

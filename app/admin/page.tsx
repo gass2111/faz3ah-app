@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from 'react'
 import Image from 'next/image'
 import Link from 'next/link'
-import { ArrowRight, Lock, Pencil, Plus, RotateCcw, Trash2, Eye, EyeOff, Store, ImagePlus, Loader2, Images } from 'lucide-react'
+import { ArrowRight, Lock, Pencil, Plus, RotateCcw, Trash2, Eye, EyeOff, Store, ImagePlus, Loader2, Images, LayoutList } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -40,6 +40,10 @@ export default function AdminPage() {
   const [bannerDesc, setBannerDesc] = useState('')
   const [bannerImage, setBannerImage] = useState('')
 
+  // حالات إدارة الأقسام الجديدة
+  const [categories, setCategories] = useState<string[]>(['مشروبات', 'حلويات', 'وجبات رئيسية'])
+  const [newCat, setNewCat] = useState('')
+
   // تحميل البيانات المخزنة عند فتح الصفحة
   useEffect(() => {
     const savedImages = localStorage.getItem('faz3ah_shop_images')
@@ -51,7 +55,31 @@ export default function AdminPage() {
     if (savedBanners) {
       try { setBanners(JSON.parse(savedBanners)) } catch (e) { console.error(e) }
     }
+
+    const savedCats = localStorage.getItem('faz3ah_categories')
+    if (savedCats) {
+      try { setCategories(JSON.parse(savedCats)) } catch (e) { console.error(e) }
+    }
   }, [])
+
+  // دوال الأقسام
+  const handleAddCategory = () => {
+    if (!newCat.trim()) return
+    const updated = [...categories, newCat]
+    setCategories(updated)
+    localStorage.setItem('faz3ah_categories', JSON.stringify(updated))
+    setNewCat('')
+    window.dispatchEvent(new Event('storage'))
+    toast.success('تمت إضافة القسم بنجاح')
+  }
+
+  const handleDeleteCategory = (cat: string) => {
+    const updated = categories.filter(c => c !== cat)
+    setCategories(updated)
+    localStorage.setItem('faz3ah_categories', JSON.stringify(updated))
+    window.dispatchEvent(new Event('storage'))
+    toast.info('تم حذف القسم')
+  }
 
   function handleLogin(e: React.FormEvent) {
     e.preventDefault()
@@ -72,6 +100,7 @@ export default function AdminPage() {
       toast.success('تمت إضافة الصنف بنجاح')
     }
     setEditing(null)
+    setDialogOpen(false)
   }
 
   function toggleVisibility(item: MenuItem) {
@@ -109,7 +138,6 @@ export default function AdminPage() {
     }, 50)
   }
 
-  // دوال نظام البنرات الإعلانية المخصصة
   const handleBannerImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (!file) return
@@ -122,23 +150,20 @@ export default function AdminPage() {
 
   const handleAddBanner = (e: React.FormEvent) => {
     e.preventDefault()
-    if (!bannerTitle || !bannerImage) {
-      toast.error('الرجاء كتابة العنوان واختيار صورة للبنر')
+    if (!bannerImage) {
+      toast.error('الرجاء اختيار صورة للبنر أولاً')
       return
     }
-
     const newBanner: CustomBanner = {
       id: Date.now().toString(),
-      title: bannerTitle,
-      description: bannerDesc,
+      title: bannerTitle || 'بنر مخصص',
+      description: bannerDesc || '',
       image: bannerImage,
     }
-
     const updated = [...banners, newBanner]
     setBanners(updated)
     localStorage.setItem('faz3ah_custom_banners', JSON.stringify(updated))
     window.dispatchEvent(new Event('storage'))
-
     toast.success('تمت إضافة البنر الإعلاني بنجاح')
     setBannerTitle('')
     setBannerDesc('')
@@ -166,37 +191,18 @@ export default function AdminPage() {
   if (!authed) {
     return (
       <main className="flex min-h-screen items-center justify-center bg-primary px-6">
-        <form
-          onSubmit={handleLogin}
-          className="flex w-full max-w-sm flex-col items-center gap-5 rounded-2xl bg-card p-8 shadow-2xl"
-        >
-          <div className="flex size-14 items-center justify-center rounded-full bg-primary">
-            <Lock className="size-7 text-gold" />
-          </div>
+        <form onSubmit={handleLogin} className="flex w-full max-w-sm flex-col items-center gap-5 rounded-2xl bg-card p-8 shadow-2xl">
+          <div className="flex size-14 items-center justify-center rounded-full bg-primary"><Lock className="size-7 text-gold" /></div>
           <div className="text-center">
             <h1 className="font-heading text-2xl font-800 text-card-foreground">لوحة التحكم</h1>
             <p className="mt-1 text-sm text-muted-foreground">أدخل كلمة المرور للوصول</p>
           </div>
           <div className="flex w-full flex-col gap-2">
             <Label htmlFor="pw">كلمة المرور</Label>
-            <Input
-              id="pw"
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              placeholder="••••••••"
-              autoFocus
-            />
+            <Input id="pw" type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="••••••••" autoFocus />
           </div>
-          <Button
-            type="submit"
-            className="h-11 w-full bg-primary font-700 text-primary-foreground hover:bg-primary/90"
-          >
-            دخول
-          </Button>
-          <Link href="/" className="text-sm text-muted-foreground hover:text-primary">
-            العودة للتطبيق
-          </Link>
+          <Button type="submit" className="h-11 w-full bg-primary font-700 text-primary-foreground hover:bg-primary/90">دخول</Button>
+          <Link href="/" className="text-sm text-muted-foreground hover:text-primary">العودة للتطبيق</Link>
         </form>
       </main>
     )
@@ -206,117 +212,71 @@ export default function AdminPage() {
     <main className="mx-auto min-h-screen max-w-2xl bg-background pb-10" dir="rtl">
       <header className="sticky top-0 z-20 flex items-center justify-between border-b border-gold/30 bg-primary px-4 py-4 shadow-md">
         <div className="flex items-center gap-3">
-          <Link href="/" aria-label="العودة">
-            <Button size="icon" variant="ghost" className="size-9 text-primary-foreground hover:bg-primary-foreground/10 hover:text-primary-foreground">
-              <ArrowRight className="size-5" />
-            </Button>
-          </Link>
+          <Link href="/" aria-label="العودة"><Button size="icon" variant="ghost" className="size-9 text-primary-foreground hover:bg-primary-foreground/10 hover:text-primary-foreground"><ArrowRight className="size-5" /></Button></Link>
           <h1 className="font-heading text-xl font-800 text-gold">إدارة التطبيق الكاملة</h1>
         </div>
-        <Button onClick={openAdd} className="gap-1 rounded-full bg-gold font-700 text-gold-foreground hover:bg-gold/90">
-          <Plus className="size-4" />
-          صنف جديد
-        </Button>
+        <Button onClick={openAdd} className="gap-1 rounded-full bg-gold font-700 text-gold-foreground hover:bg-gold/90"><Plus className="size-4" /> صنف جديد</Button>
       </header>
 
-      {/* الـ Input المخفي لرفع صور المحلات */}
-      <input
-        type="file"
-        ref={shopFileInputRef}
-        onChange={handleShopImageUpload}
-        accept="image/*"
-        className="hidden"
-      />
-
-      {/* إدارة صور وشعارات المحلات الأصلية */}
+      {/* قسم إدارة الأقسام الجديد */}
       <section className="m-4 rounded-xl border border-gold/20 bg-card p-4 shadow-sm">
         <div className="flex items-center gap-2 border-b pb-2 mb-3 border-border">
-          <Store className="size-5 text-primary" />
-          <h2 className="font-heading font-700 text-base text-card-foreground">إدارة صور وشعارات المحلات</h2>
+          <LayoutList className="size-5 text-primary" />
+          <h2 className="font-heading font-700 text-base text-card-foreground">إدارة أقسام القائمة</h2>
         </div>
-        
+        <div className="flex gap-2 mb-4">
+          <Input value={newCat} onChange={(e) => setNewCat(e.target.value)} placeholder="اسم القسم الجديد..." />
+          <Button onClick={handleAddCategory} className="bg-primary text-primary-foreground"><Plus className="size-4" /></Button>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          {categories.map(cat => (
+            <Badge key={cat} className="flex items-center gap-2 px-3 py-1 bg-secondary text-secondary-foreground">
+              {cat}
+              <button onClick={() => handleDeleteCategory(cat)} className="hover:text-destructive"><Trash2 className="size-3" /></button>
+            </Badge>
+          ))}
+        </div>
+      </section>
+
+      {/* باقي الأقسام الأصلية كما هي تماماً */}
+      <input type="file" ref={shopFileInputRef} onChange={handleShopImageUpload} accept="image/*" className="hidden" />
+      
+      <section className="m-4 rounded-xl border border-gold/20 bg-card p-4 shadow-sm">
+        <div className="flex items-center gap-2 border-b pb-2 mb-3 border-border"><Store className="size-5 text-primary" /><h2 className="font-heading font-700 text-base text-card-foreground">إدارة صور وشعارات المحلات</h2></div>
         <div className="grid grid-cols-2 gap-3">
           {SHOPS.map((shop) => {
             const currentImg = shopImages[shop.id] || `/stores/${shop.id}.png`
             return (
               <div key={shop.id} className="flex flex-col items-center gap-2 rounded-lg border border-border p-3 bg-secondary/10">
-                <div className="relative size-16 overflow-hidden rounded-full border bg-white flex items-center justify-center">
-                  <img 
-                    src={currentImg} 
-                    alt={shop.name} 
-                    className="h-full w-full object-cover"
-                    onError={(e) => {
-                      (e.currentTarget as HTMLImageElement).src = '/placeholder.svg'
-                    }}
-                  />
-                </div>
+                <div className="relative size-16 overflow-hidden rounded-full border bg-white flex items-center justify-center"><img src={currentImg} alt={shop.name} className="h-full w-full object-cover" onError={(e) => { (e.currentTarget as HTMLImageElement).src = '/placeholder.svg' }} /></div>
                 <span className="text-xs font-700 text-card-foreground text-center">{shop.name}</span>
-                <Button 
-                  size="sm" 
-                  variant="outline" 
-                  onClick={() => triggerShopUpload(shop.id)}
-                  className="mt-1 h-7 text-[11px] gap-1 px-2 border-primary/40 text-primary hover:bg-primary/5"
-                >
-                  <ImagePlus className="size-3" />
-                  تغيير الشعار
-                </Button>
+                <Button size="sm" variant="outline" onClick={() => triggerShopUpload(shop.id)} className="mt-1 h-7 text-[11px] gap-1 px-2 border-primary/40 text-primary hover:bg-primary/5"><ImagePlus className="size-3" /> تغيير الشعار</Button>
               </div>
             )
           })}
         </div>
       </section>
 
-      {/* القسم الجديد والمطلوب: إدارة البنرات الإعلانية المضافة بنفس لغة التصميم */}
       <section className="m-4 rounded-xl border border-gold/20 bg-card p-4 shadow-sm">
-        <div className="flex items-center gap-2 border-b pb-2 mb-3 border-border">
-          <Images className="size-5 text-primary" />
-          <h2 className="font-heading font-700 text-base text-card-foreground">إدارة البنرات الإعلانية للرئيسية</h2>
-        </div>
-
+        <div className="flex items-center gap-2 border-b pb-2 mb-3 border-border"><Images className="size-5 text-primary" /><h2 className="font-heading font-700 text-base text-card-foreground">إدارة البنرات الإعلانية للرئيسية</h2></div>
         <form onSubmit={handleAddBanner} className="flex flex-col gap-3 text-right mb-4">
-          <div className="grid grid-cols-2 gap-3">
-            <div className="flex flex-col gap-1.5">
-              <Label htmlFor="bannerTitle" className="text-xs font-700">عنوان البنر الرئيسي</Label>
-              <Input id="bannerTitle" type="text" value={bannerTitle} onChange={(e) => setBannerTitle(e.target.value)} placeholder="مثال: عروض نهاية الأسبوع" className="text-xs h-9" />
-            </div>
-            <div className="flex flex-col gap-1.5">
-              <Label htmlFor="bannerDesc" className="text-xs font-700">الوصف الفرعي (اختياري)</Label>
-              <Input id="bannerDesc" type="text" value={bannerDesc} onChange={(e) => setBannerDesc(e.target.value)} placeholder="مثال: خصومات تصل إلى 50%" className="text-xs h-9" />
-            </div>
-          </div>
-
           <div className="flex items-center justify-between gap-3 mt-1">
             <div className="flex items-center gap-2">
               <input type="file" accept="image/*" id="banner-file-input" className="hidden" onChange={handleBannerImageUpload} />
-              <label htmlFor="banner-file-input" className="flex items-center gap-1.5 border border-dashed rounded-lg px-3 py-1.5 text-xs cursor-pointer bg-secondary/10 border-primary/40 text-primary hover:bg-primary/5 font-700">
-                <ImagePlus className="size-3.5" /> اختر صورة البنر
-              </label>
+              <label htmlFor="banner-file-input" className="flex items-center gap-1.5 border border-dashed rounded-lg px-3 py-1.5 text-xs cursor-pointer bg-secondary/10 border-primary/40 text-primary hover:bg-primary/5 font-700"><ImagePlus className="size-3.5" /> اختر صورة البنر</label>
               {bannerImage && <span className="text-[11px] text-green-600 font-700">✓ تم تجهيز الصورة</span>}
             </div>
-            <Button type="submit" size="sm" className="bg-primary font-700 text-primary-foreground hover:bg-primary/90 text-xs h-8 px-4 rounded-lg">
-              حفظ ونشر البنر
-            </Button>
+            <Button type="submit" size="sm" className="bg-primary font-700 text-primary-foreground hover:bg-primary/90 text-xs h-8 px-4 rounded-lg">حفظ ونشر البنر</Button>
           </div>
         </form>
-
         <div className="pt-3 border-t border-border">
           <span className="block text-xs font-700 text-muted-foreground mb-2">البنرات النشطة حالياً ({banners.length})</span>
-          {banners.length === 0 ? (
-            <p className="text-xs text-muted-foreground/70 bg-secondary/10 p-3 rounded-lg text-center font-medium">يتم الآن عرض البنرات الافتراضية. أضف بنراً مخصصاً للتحكم بها.</p>
-          ) : (
+          {banners.length === 0 ? <p className="text-xs text-muted-foreground/70 bg-secondary/10 p-3 rounded-lg text-center font-medium">لا توجد بنرات حالياً.</p> : (
             <div className="flex flex-col gap-2">
               {banners.map((b) => (
                 <div key={b.id} className="flex items-center justify-between p-2 border border-border rounded-lg bg-secondary/5 gap-3">
-                  <div className="relative h-10 w-16 overflow-hidden rounded border bg-white flex-shrink-0">
-                    <img src={b.image} className="size-full object-cover" alt="" />
-                  </div>
-                  <div className="flex-1 min-w-0 text-right">
-                    <h4 className="text-xs font-700 text-card-foreground truncate">{b.title}</h4>
-                    {b.description && <p className="text-[10px] text-muted-foreground truncate">{b.description}</p>}
-                  </div>
-                  <Button variant="outline" size="icon" onClick={() => handleDeleteBanner(b.id)} className="size-7 text-destructive border-destructive/20 hover:bg-destructive hover:text-white rounded-md flex-shrink-0">
-                    <Trash2 className="size-3.5" />
-                  </Button>
+                  <div className="relative h-10 w-16 overflow-hidden rounded border bg-white flex-shrink-0"><img src={b.image} className="size-full object-cover" alt="" /></div>
+                  <Button variant="outline" size="icon" onClick={() => handleDeleteBanner(b.id)} className="size-7 text-destructive border-destructive/20 hover:bg-destructive hover:text-white rounded-md flex-shrink-0"><Trash2 className="size-3.5" /></Button>
                 </div>
               ))}
             </div>
@@ -324,79 +284,33 @@ export default function AdminPage() {
         </div>
       </section>
 
-      {/* قائمة المنتجات والتحكم الأصلي */}
       <div className="flex items-center justify-between px-4 py-3 border-t mt-4 border-border">
         <p className="text-sm text-muted-foreground">{menu.length} صنف مسجل حالياً</p>
-        <button
-          onClick={() => {
-            if(confirm('هل أنت متأكد من استعادة القائمة الافتراضية؟')) {
-              resetMenu()
-              toast.success('تمت استعادة القائمة الافتراضية')
-            }
-          }}
-          className="flex items-center gap-1 text-sm text-muted-foreground hover:text-primary"
-        >
-          <RotateCcw className="size-3.5" />
-          استعادة الافتراضي
-        </button>
+        <button onClick={() => { if(confirm('هل أنت متأكد؟')) resetMenu() }} className="flex items-center gap-1 text-sm text-muted-foreground hover:text-primary"><RotateCcw className="size-3.5" /> استعادة الافتراضي</button>
       </div>
 
       <ul className="flex flex-col gap-3 px-4">
         {menu.map((item) => {
           const isAvailable = item.available ?? true
           const shopName = SHOPS.find(s => s.id === item.shopId)?.name || 'غير محدد'
-          
           return (
-            <li 
-              key={item.id} 
-              className={`flex gap-3 rounded-xl border border-border bg-card p-3 transition-opacity ${
-                !isAvailable ? 'opacity-50 border-dashed bg-secondary/30' : ''
-              }`}
-            >
-              <div className="relative h-20 w-20 shrink-0 overflow-hidden rounded-lg">
-                <img src={item.image || '/placeholder.svg'} alt={item.name} className="h-full w-full object-cover rounded-lg" />
-              </div>
+            <li key={item.id} className={`flex gap-3 rounded-xl border border-border bg-card p-3 transition-opacity ${!isAvailable ? 'opacity-50 border-dashed bg-secondary/30' : ''}`}>
+              <div className="relative h-20 w-20 shrink-0 overflow-hidden rounded-lg"><img src={item.image || '/placeholder.svg'} alt={item.name} className="h-full w-full object-cover rounded-lg" /></div>
               <div className="flex min-w-0 flex-1 flex-col gap-1">
                 <div className="flex items-center justify-between gap-2">
-                  <h3 className="font-700 text-card-foreground text-right">
-                    {item.name} {!isAvailable && <span className="text-xs text-destructive">(مخفي)</span>}
-                  </h3>
+                  <h3 className="font-700 text-card-foreground text-right">{item.name} {!isAvailable && <span className="text-xs text-destructive">(مخفي)</span>}</h3>
                   <div className="flex gap-1 shrink-0">
-                    <Badge variant="outline" className="text-[10px] border-gold text-gold bg-primary/10">
-                      {shopName}
-                    </Badge>
-                    <Badge variant="secondary" className="text-[10px]">
-                      {CATEGORY_LABELS[item.category]}
-                    </Badge>
+                    <Badge variant="outline" className="text-[10px] border-gold text-gold bg-primary/10">{shopName}</Badge>
+                    <Badge variant="secondary" className="text-[10px]">{CATEGORY_LABELS[item.category]}</Badge>
                   </div>
                 </div>
                 <p className="line-clamp-1 text-sm text-muted-foreground text-right">{item.description}</p>
                 <div className="mt-auto flex items-center justify-between pt-1">
                   <span className="font-heading font-800 text-primary">{item.price.toFixed(2)} د.أ</span>
                   <div className="flex gap-1">
-                    <Button 
-                      size="icon" 
-                      variant={isAvailable ? "outline" : "default"} 
-                      className={`size-8 ${!isAvailable ? 'bg-primary text-primary-foreground' : ''}`} 
-                      onClick={() => toggleVisibility(item)}
-                    >
-                      {isAvailable ? <Eye className="size-4" /> : <EyeOff className="size-4" />}
-                    </Button>
-
-                    <Button size="icon" variant="outline" className="size-8" onClick={() => openEdit(item)}>
-                      <Pencil className="size-4" />
-                    </Button>
-                    <Button
-                      size="icon"
-                      variant="outline"
-                      className="size-8 text-destructive hover:bg-destructive hover:text-white"
-                      onClick={() => {
-                        removeItem(item.id)
-                        toast.success('تم حذف الصنف')
-                      }}
-                    >
-                      <Trash2 className="size-4" />
-                    </Button>
+                    <Button size="icon" variant={isAvailable ? "outline" : "default"} className={`size-8 ${!isAvailable ? 'bg-primary text-primary-foreground' : ''}`} onClick={() => toggleVisibility(item)}>{isAvailable ? <Eye className="size-4" /> : <EyeOff className="size-4" />}</Button>
+                    <Button size="icon" variant="outline" className="size-8" onClick={() => openEdit(item)}><Pencil className="size-4" /></Button>
+                    <Button size="icon" variant="outline" className="size-8 text-destructive hover:bg-destructive hover:text-white" onClick={() => { removeItem(item.id); toast.success('تم حذف الصنف') }}><Trash2 className="size-4" /></Button>
                   </div>
                 </div>
               </div>
@@ -404,13 +318,7 @@ export default function AdminPage() {
           )
         })}
       </ul>
-
-      <ItemFormDialog
-        open={dialogOpen}
-        onClose={() => setDialogOpen(false)}
-        onSave={handleSave}
-        editing={editing}
-      />
+      <ItemFormDialog open={dialogOpen} onClose={() => setDialogOpen(false)} onSave={handleSave} editing={editing} />
     </main>
   )
 }
