@@ -40,7 +40,7 @@ export function CartSheet({
     )
   }
 
-  function handleConfirm() {
+   function handleConfirm() {
     if (cart.length === 0) {
       toast.error('السلة فارغة، أضف بعض الأصناف أولاً')
       return
@@ -49,11 +49,17 @@ export function CartSheet({
       toast.error('الرجاء إدخال عنوان التوصيل')
       return
     }
-    const url = `https://wa.me/${STORE_PHONE}?text=${encodeURIComponent(buildMessage())}`
+
+    // تنظيف الرقم من أي شيء غير الأرقام
+    const phone = STORE_PHONE.replace(/[^0-9]/g, '');
+    
+    // بناء الرابط المباشر الصحيح
+    // الصيغة: https://wa.me/962780943795?text=...
+    const url = `https://wa.me/${phone}?text=${encodeURIComponent(buildMessage())}`
+    
     window.open(url, '_blank')
     toast.success('تم تجهيز طلبك وفتح الواتساب')
   }
-
   return (
     <>
       {/* Overlay */}
@@ -93,7 +99,7 @@ export function CartSheet({
             <div className="flex h-full flex-col items-center justify-center gap-3 text-center text-muted-foreground">
               <ShoppingBag className="size-12 opacity-40" />
               <p className="font-600">سلتك فارغة</p>
-              <p className="text-sm">أضف أصنافك المفضلة من المنيو</p>
+              <p className="text-sm">أضف أصنافك المفضلة من اfunction handleConfirm()لمنيو</p>
             </div>
           ) : (
             <ul className="flex flex-col gap-3">

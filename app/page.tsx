@@ -26,6 +26,9 @@ export default function HomePage() {
   const { menu } = useMenu()
   const { cart, addToCart, removeFromCart, totalPrice } = useCart()
 
+
+
+  
   // تفريغ خانة البحث تلقائياً عند تغيير المحل أو العودة للخلف
   useEffect(() => {
     setSearchQuery('')

@@ -47,4 +47,7 @@ export const DEFAULT_MENU: MenuItem[] = [
   { id: '10', name: 'عصير برتقال طبيعي', price: 2.50, description: 'عصير برتقال معصور طازج', image: '/products/juice.png', category: 'drinks', shopId: 'hashemi', available: true }
 ]
 
-export const STORE_PHONE = '0780943795';
+export const STORE_PHONE = '+962 7 8094 3795';
+
+
+
