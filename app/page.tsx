@@ -85,7 +85,7 @@ export default function HomePage() {
           </div>
           <div className="flex flex-col whitespace-nowrap">
             <h1 className="font-heading text-xl font-900 leading-none text-gold">فزعة للتسوق</h1>
-            <span className="text-[10px] text-primary-foreground/70">أصالة وفخامة في كل طلب</span>
+            <span className="text-[10px] text-primary-foreground/70">ابشر بالفزعة</span>
           </div>
         </div>
         <div className="flex items-center gap-1">
@@ -136,9 +136,13 @@ export default function HomePage() {
       ) : (
         <div className="p-4">
           <div className="flex items-center justify-between mb-4">
-            <button onClick={() => setSelectedShop(null)} className="text-sm font-800 text-primary flex items-center gap-1">
-              <ArrowRight className="size-4" /> عودة
-            </button>
+           <button 
+  onClick={() => setSelectedShop(null)} 
+  className="flex items-center gap-2 px-4 py-2 bg-white border border-primary/20 rounded-full shadow-sm hover:bg-primary/5 transition-all text-sm font-800 text-primary"
+>
+  <ArrowRight className="size-4" /> 
+  <span>عودة للمحلات</span>
+</button>
           </div>
 
           {/* خانة البحث المصممة بتناسق مع التطبيق والدعم للغة العربية */}
@@ -181,11 +185,7 @@ export default function HomePage() {
         </div>
       )}
 
-      <footer className="w-full pt-16 pb-6 text-center" dir="ltr">
-        <Link href="https://www.instagram.com/GASS_211" target="_blank" className="text-xs font-500 text-muted-foreground/60 hover:text-primary transition-colors duration-300">
-          Developer by Mahmoud Al-Ali
-        </Link>
-      </footer>
+    
 
       {totalCartItems > 0 && (
         <div className="fixed inset-x-0 bottom-0 z-40 mx-auto max-w-2xl p-4">

@@ -13,7 +13,7 @@ import { ItemFormDialog } from '@/components/item-form-dialog'
 import { useMenu } from '@/lib/use-menu'
 import { CATEGORY_LABELS, SHOPS, type MenuItem, type ShopId } from '@/lib/menu-data'
 
-const ADMIN_PASSWORD = 'faz3ah2026'
+const ADMIN_PASSWORD = 'omar000999'
 
 interface CustomBanner {
   id: string

@@ -6,7 +6,7 @@ export function SplashScreen() {
   return (
     <div className="fixed inset-0 z-[9999] flex flex-col items-center justify-center bg-[#7f0019]">
       <div className="animate-pulse">
-        <div className="relative h-36 w-36 overflow-hidden rounded-full border-4 border-white shadow-2xl">
+        <div className="relative h-36 w-36 overflow-hidden rounded-full border-0 border-white shadow-2xl">
           <Image
             src="/logo.png"
             alt="فزعة"
@@ -21,9 +21,9 @@ export function SplashScreen() {
         فزعة
       </h1>
 
-      <p className="mt-2 text-white/90">
-        أصالة وفخامة في كل طلب
-      </p>
+      <p className="text-gold font-800 text-2xl mt-5">
+  طلبات في طلب واحد
+</p>
 
       <div className="mt-8 flex gap-2">
         <span className="h-3 w-3 animate-bounce rounded-full bg-white"></span>
