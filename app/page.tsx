@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from 'react'
 import Image from 'next/image'
-import Link from 'next/link'
 import { ShoppingCart, LayoutDashboard, ArrowRight, ShoppingBag, Search } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -11,7 +10,12 @@ import { MenuItemCard } from '@/components/menu-item-card'
 import { CartSheet } from '@/components/cart-sheet'
 import { useMenu } from '@/lib/use-menu'
 import { useCart } from '@/lib/use-cart'
-import { SHOPS, CATEGORY_ORDER, CATEGORY_LABELS, type MenuItem } from '@/lib/menu-data'
+import { SHOPS, CATEGORY_LABELS } from '@/lib/menu-data'
+import { collection, onSnapshot } from 'firebase/firestore'
+import { db } from '@/lib/firebase' // تأكد من مسار ملف الفايربيس عندك
+
+type ShopId = string;
+
 export default function HomePage() {
   const [showSplash, setShowSplash] = useState(true)
   const [selectedShop, setSelectedShop] = useState<ShopId | null>(null)
@@ -19,22 +23,24 @@ export default function HomePage() {
   const [shopImages, setShopImages] = useState<Record<string, string>>({})
   const [banners, setBanners] = useState<any[]>([])
   const [currentIndex, setCurrentIndex] = useState(0)
-  
-  // الـ State الخاص بنص البحث
   const [searchQuery, setSearchQuery] = useState('')
 
   const { menu } = useMenu()
   const { cart, addToCart, removeFromCart, totalPrice } = useCart()
 
+  // جلب البنرات مباشرة من Firebase
+  useEffect(() => {
+    const unsubscribe = onSnapshot(collection(db, 'banners'), (snapshot) => {
+      const bannersData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      setBanners(bannersData);
+    });
+    return () => unsubscribe();
+  }, []);
 
-
-  
-  // تفريغ خانة البحث تلقائياً عند تغيير المحل أو العودة للخلف
   useEffect(() => {
     setSearchQuery('')
   }, [selectedShop])
 
-  // التنقل التلقائي للبنرات كل 3 ثواني
   useEffect(() => {
     if (banners.length === 0) return
     const interval = setInterval(() => {
@@ -49,30 +55,18 @@ export default function HomePage() {
   }, [])
 
   useEffect(() => {
-    const loadData = () => {
-      const savedShops = localStorage.getItem('faz3ah_shop_images')
-      if (savedShops) try { setShopImages(JSON.parse(savedShops)) } catch (e) { console.error(e) }
-      
-      const savedBanners = localStorage.getItem('faz3ah_custom_banners')
-      if (savedBanners) {
-        try { setBanners(JSON.parse(savedBanners)) } catch (e) { console.error(e) }
-      }
-    }
-    loadData()
-    window.addEventListener('storage', loadData)
-    return () => window.removeEventListener('storage', loadData)
+    const savedShops = localStorage.getItem('faz3ah_shop_images')
+    if (savedShops) try { setShopImages(JSON.parse(savedShops)) } catch (e) { console.error(e) }
   }, [])
 
   if (showSplash) return <SplashScreen />
 
   const totalCartItems = cart.reduce((acc, item) => acc + item.quantity, 0)
   
-  // تصفية القائمة بناءً على المحل المختار وحالة تفعيل المنتج، إضافةً لتصفية نص البحث
-  const filteredMenu = menu.filter((item) => {
-    const isAvailable = item.available ?? true
+  const filteredMenu = menu.filter((item) => { 
     const matchesShop = !selectedShop || item.shopId === selectedShop
     const matchesSearch = item.name.toLowerCase().includes(searchQuery.toLowerCase())
-    
+    const isAvailable = item.available !== false 
     return isAvailable && matchesShop && matchesSearch
   })
 
@@ -99,27 +93,30 @@ export default function HomePage() {
         </div>
       </header>
 
-      {/* قسم السلايدر للبنرات */}
+      {/* قسم البنرات من Firebase مباشرة */}
       {banners.length > 0 && (
-  <section className="px-4 pt-4">
-    <div className="relative h-40 w-full overflow-hidden rounded-2xl shadow-lg">
-      {banners.map((b, index) => (
-        <div key={b.id} className={`absolute inset-0 transition-opacity duration-1000 ${index === currentIndex ? 'opacity-100' : 'opacity-0'}`}>
-          {/* الصورة الآن ستكون ساطعة وواضحة تماماً */}
-          <img src={b.image} alt={b.title} className="h-full w-full object-cover" />
-
-          {/* تمت إزالة الـ overlay الأسود والنصوص بالكامل */}
-        </div>
-      ))}
-    </div>
-    {/* ابقي كود مؤشرات النقاط كما هو إذا أردت استمراريتها */}
-    <div className="flex justify-center gap-2 mt-2">
-      {banners.map((_, index) => (
-        <button key={index} className={`size-2 rounded-full ${index === currentIndex ? 'bg-primary' : 'bg-gray-300'}`} onClick={() => setCurrentIndex(index)} />
-      ))}
-    </div>
-  </section>
-)}
+        <section className="px-4 pt-4">
+          <div className="relative h-40 w-full overflow-hidden rounded-2xl shadow-lg bg-white">
+            {banners.map((b, index) => (
+              <div 
+                key={b.id} 
+                className={`absolute inset-0 transition-opacity duration-1000 ${index === currentIndex ? 'opacity-100' : 'opacity-0'}`}
+              >
+                <img 
+                  src={b.image} 
+                  alt={b.title || "Banner"} 
+                  className="h-full w-full object-cover"
+                />
+              </div>
+            ))}
+          </div>
+          <div className="flex justify-center gap-2 mt-2">
+            {banners.map((_, index) => (
+              <button key={index} className={`size-2 rounded-full ${index === currentIndex ? 'bg-primary' : 'bg-gray-300'}`} onClick={() => setCurrentIndex(index)} />
+            ))}
+          </div>
+        </section>
+      )}
 
       {!selectedShop ? (
         <section className="px-4 pt-6">
@@ -136,16 +133,12 @@ export default function HomePage() {
       ) : (
         <div className="p-4">
           <div className="flex items-center justify-between mb-4">
-           <button 
-  onClick={() => setSelectedShop(null)} 
-  className="flex items-center gap-2 px-4 py-2 bg-white border border-primary/20 rounded-full shadow-sm hover:bg-primary/5 transition-all text-sm font-800 text-primary"
->
-  <ArrowRight className="size-4" /> 
-  <span>عودة للمحلات</span>
-</button>
+             <button onClick={() => setSelectedShop(null)} className="flex items-center gap-2 px-4 py-2 bg-white border border-primary/20 rounded-full shadow-sm hover:bg-primary/5 transition-all text-sm font-800 text-primary">
+              <ArrowRight className="size-4" /> 
+              <span>عودة للمحلات</span>
+            </button>
           </div>
 
-          {/* خانة البحث المصممة بتناسق مع التطبيق والدعم للغة العربية */}
           <div className="relative flex items-center mb-6">
             <input
               type="text"
@@ -157,21 +150,21 @@ export default function HomePage() {
             <Search className="absolute right-3.5 size-4 text-muted-foreground/60" />
           </div>
 
-          {/* عرض المنتجات بناءً على الفلترة */}
-          {CATEGORY_ORDER.some(cat => filteredMenu.some(i => i.category === cat)) ? (
-            CATEGORY_ORDER.map((cat) => {
+          {Array.from(new Set(filteredMenu.map(i => i.category))).length > 0 ? (
+            Array.from(new Set(filteredMenu.map(i => i.category))).map((cat) => {
               const items = filteredMenu.filter((i) => i.category === cat)
-              if (items.length === 0) return null
               return (
                 <div key={cat} className="mb-6">
-                  <h2 className="font-heading text-base font-800 mb-3">{CATEGORY_LABELS[cat]}</h2>
+                  <h2 className="font-heading text-base font-800 mb-3">
+                    {CATEGORY_LABELS[cat as keyof typeof CATEGORY_LABELS] || cat}
+                  </h2>
                   {items.map((item) => (
-                    <MenuItemCard 
-                      key={item.id} 
-                      item={item} 
-                      onAdd={addToCart} 
-                      onRemove={() => removeFromCart(item.id)} 
-                      quantity={cart.find(c => c.id === item.id)?.quantity || 0} 
+                    <MenuItemCard
+                      key={item.id}
+                      item={item}
+                      onAdd={addToCart}
+                      onRemove={() => removeFromCart(item.id)}
+                      quantity={cart.find((c) => c.id === item.id)?.quantity || 0}
                     />
                   ))}
                 </div>
@@ -184,8 +177,6 @@ export default function HomePage() {
           )}
         </div>
       )}
-
-    
 
       {totalCartItems > 0 && (
         <div className="fixed inset-x-0 bottom-0 z-40 mx-auto max-w-2xl p-4">

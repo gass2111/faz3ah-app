@@ -1,48 +1,49 @@
 'use client'
 
-import { useCallback, useEffect, useState } from 'react'
-import { DEFAULT_MENU, type MenuItem } from './menu-data'
-
-const MENU_KEY = 'faz3ah_menu_v3'
-
-function readMenu(): MenuItem[] {
-  if (typeof window === 'undefined') return DEFAULT_MENU
-  try {
-    const raw = window.localStorage.getItem(MENU_KEY)
-    if (raw) {
-      const parsed = JSON.parse(raw)
-      return Array.isArray(parsed) && parsed.length > 0 ? parsed : DEFAULT_MENU
-    }
-  } catch {
-    return DEFAULT_MENU
-  }
-  return DEFAULT_MENU
-}
+import { useEffect, useState } from 'react'
+import { type MenuItem } from './menu-data'
+import { collection, onSnapshot, doc, setDoc, deleteDoc } from "firebase/firestore"
+import { db } from "./firebase"
 
 export function useMenu() {
-  const [menu, setMenu] = useState<MenuItem[]>(DEFAULT_MENU)
+  const [menu, setMenu] = useState<MenuItem[]>([])
 
   useEffect(() => {
-    setMenu(readMenu())
+    const colRef = collection(db, "menuItems")
+    const unsubscribe = onSnapshot(colRef, (snapshot) => {
+      const items: MenuItem[] = []
+      snapshot.forEach((doc) => {
+        items.push({ id: doc.id, ...doc.data() } as MenuItem)
+      })
+      const uniqueItems = Array.from(new Map(items.map(item => [item.id, item])).values())
+      setMenu(uniqueItems)
+    })
+    return () => unsubscribe()
   }, [])
 
-  const addItem = useCallback((item: MenuItem) => {
-    const updated = [...readMenu(), item]
-    window.localStorage.setItem(MENU_KEY, JSON.stringify(updated))
-    setMenu(updated)
-  }, [])
+  // دالة الإضافة (تستخدم setDoc)
+  const addItem = async (item: MenuItem) => {
+    const id = item.id || `item_${Date.now()}`
+    const docRef = doc(db, "menuItems", id)
+    await setDoc(docRef, { ...item, id })
+  }
 
-  const updateItem = useCallback((item: MenuItem) => {
-    const updated = readMenu().map((m) => (m.id === item.id ? item : m))
-    window.localStorage.setItem(MENU_KEY, JSON.stringify(updated))
-    setMenu(updated)
-  }, [])
+  // دالة التحديث
+  const updateItem = async (item: MenuItem) => {
+    if (!item.id) return
+    const docRef = doc(db, "menuItems", item.id)
+    await setDoc(docRef, item, { merge: true })
+  }
 
-  const removeItem = useCallback((id: string) => {
-    const updated = readMenu().filter((m) => m.id !== id)
-    window.localStorage.setItem(MENU_KEY, JSON.stringify(updated))
-    setMenu(updated)
-  }, [])
+  // دالة الحذف
+  const removeItem = async (id: string) => {
+    if (!id) return
+    const docRef = doc(db, "menuItems", id)
+    await deleteDoc(docRef)
+  }
 
-  return { menu, addItem, updateItem, removeItem }
+  // دالة إضافية إذا كنت تستخدمها في صفحة الإدارة
+  const resetMenu = () => setMenu([])
+
+  return { menu, addItem, updateItem, removeItem, resetMenu }
 }

@@ -12,6 +12,8 @@ import { Badge } from '@/components/ui/badge'
 import { ItemFormDialog } from '@/components/item-form-dialog'
 import { useMenu } from '@/lib/use-menu'
 import { CATEGORY_LABELS, SHOPS, type MenuItem, type ShopId } from '@/lib/menu-data'
+import { db } from "@/lib/firebase" // تأكد من استيراد db هنا
+import { collection, addDoc, deleteDoc, doc, onSnapshot } from "firebase/firestore"
 
 const ADMIN_PASSWORD = 'omar000999'
 
@@ -29,47 +31,40 @@ export default function AdminPage() {
   const [dialogOpen, setDialogOpen] = useState(false)
   const [editing, setEditing] = useState<MenuItem | null>(null)
 
-  // حالة لتخزين صور المحلات ديناميكياً
   const [shopImages, setShopImages] = useState<Record<string, string>>({})
   const [uploadingShopId, setUploadingShopId] = useState<string | null>(null)
   const shopFileInputRef = useRef<HTMLInputElement>(null)
 
-  // الحالات المخصصة لنظام إدارة البنرات الجديد
   const [banners, setBanners] = useState<CustomBanner[]>([])
   const [bannerTitle, setBannerTitle] = useState('')
   const [bannerDesc, setBannerDesc] = useState('')
   const [bannerImage, setBannerImage] = useState('')
 
-  // حالات إدارة الأقسام الجديدة
   const [categories, setCategories] = useState<string[]>(['مشروبات', 'حلويات', 'وجبات رئيسية'])
   const [newCat, setNewCat] = useState('')
 
-  // تحميل البيانات المخزنة عند فتح الصفحة
+  // تحميل البنرات من Firebase فوراً
   useEffect(() => {
-    const savedImages = localStorage.getItem('faz3ah_shop_images')
-    if (savedImages) {
-      try { setShopImages(JSON.parse(savedImages)) } catch (e) { console.error(e) }
-    }
-
-    const savedBanners = localStorage.getItem('faz3ah_custom_banners')
-    if (savedBanners) {
-      try { setBanners(JSON.parse(savedBanners)) } catch (e) { console.error(e) }
-    }
-
-    const savedCats = localStorage.getItem('faz3ah_categories')
-    if (savedCats) {
-      try { setCategories(JSON.parse(savedCats)) } catch (e) { console.error(e) }
-    }
+    const unsub = onSnapshot(collection(db, "banners"), (snapshot) => {
+      const bannersData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as CustomBanner))
+      setBanners(bannersData)
+    })
+    return () => unsub()
   }, [])
 
-  // دوال الأقسام
+  useEffect(() => {
+    const savedImages = localStorage.getItem('faz3ah_shop_images')
+    if (savedImages) { try { setShopImages(JSON.parse(savedImages)) } catch (e) { console.error(e) } }
+    const savedCats = localStorage.getItem('faz3ah_categories')
+    if (savedCats) { try { setCategories(JSON.parse(savedCats)) } catch (e) { console.error(e) } }
+  }, [])
+
   const handleAddCategory = () => {
     if (!newCat.trim()) return
     const updated = [...categories, newCat]
     setCategories(updated)
     localStorage.setItem('faz3ah_categories', JSON.stringify(updated))
     setNewCat('')
-    window.dispatchEvent(new Event('storage'))
     toast.success('تمت إضافة القسم بنجاح')
   }
 
@@ -77,7 +72,6 @@ export default function AdminPage() {
     const updated = categories.filter(c => c !== cat)
     setCategories(updated)
     localStorage.setItem('faz3ah_categories', JSON.stringify(updated))
-    window.dispatchEvent(new Event('storage'))
     toast.info('تم حذف القسم')
   }
 
@@ -92,39 +86,33 @@ export default function AdminPage() {
   }
 
   function handleSave(item: MenuItem) {
+    const itemToSave = { ...item, id: item.id || `item_${Date.now()}` };
     if (editing) {
-      updateItem(item)
-      toast.success('تم تحديث الصنف بنجاح')
+      updateItem(itemToSave);
+      toast.success('تم تحديث الصنف بنجاح');
     } else {
-      addItem({ ...item, available: item.available ?? true })
-      toast.success('تمت إضافة الصنف بنجاح')
+      addItem(itemToSave);
+      toast.success('تمت إضافة الصنف بنجاح');
     }
-    setEditing(null)
-    setDialogOpen(false)
+    setEditing(null);
+    setDialogOpen(false);
   }
 
   function toggleVisibility(item: MenuItem) {
     const currentStatus = item.available ?? true
     updateItem({ ...item, available: !currentStatus })
-    if (currentStatus) {
-      toast.info(`تم إخفاء ${item.name} عن الزبائن`)
-    } else {
-      toast.success(`تم إظهار ${item.name} للزبائن`)
-    }
+    toast.info(currentStatus ? `تم إخفاء ${item.name}` : `تم إظهار ${item.name}`)
   }
 
   const handleShopImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (!file || !uploadingShopId) return
-
     const reader = new FileReader()
     reader.onloadend = () => {
       const base64String = reader.result as string
       const updatedImages = { ...shopImages, [uploadingShopId]: base64String }
       setShopImages(updatedImages)
       localStorage.setItem('faz3ah_shop_images', JSON.stringify(updatedImages))
-      
-      window.dispatchEvent(new Event('storage'))
       toast.success('تم تحديث شعار المحل بنجاح')
       setUploadingShopId(null)
     }
@@ -133,60 +121,53 @@ export default function AdminPage() {
 
   function triggerShopUpload(shopId: string) {
     setUploadingShopId(shopId)
-    setTimeout(() => {
-      shopFileInputRef.current?.click()
-    }, 50)
+    setTimeout(() => { shopFileInputRef.current?.click() }, 50)
   }
 
   const handleBannerImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (!file) return
     const reader = new FileReader()
-    reader.onloadend = () => {
-      setBannerImage(reader.result as string)
-    }
+    reader.onloadend = () => { setBannerImage(reader.result as string) }
     reader.readAsDataURL(file)
   }
 
-  const handleAddBanner = (e: React.FormEvent) => {
+  // التعديل هنا: الحفظ في Firebase
+  const handleAddBanner = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!bannerImage) {
       toast.error('الرجاء اختيار صورة للبنر أولاً')
       return
     }
-    const newBanner: CustomBanner = {
-      id: Date.now().toString(),
-      title: bannerTitle || 'بنر مخصص',
-      description: bannerDesc || '',
-      image: bannerImage,
+    try {
+      await addDoc(collection(db, "banners"), {
+        title: bannerTitle || 'بنر مخصص',
+        description: bannerDesc || '',
+        image: bannerImage,
+        createdAt: new Date().toISOString()
+      })
+      toast.success('تمت إضافة البنر الإعلاني بنجاح')
+      setBannerTitle('')
+      setBannerDesc('')
+      setBannerImage('')
+    } catch (error) {
+      toast.error('حدث خطأ أثناء الحفظ')
+      console.error(error)
     }
-    const updated = [...banners, newBanner]
-    setBanners(updated)
-    localStorage.setItem('faz3ah_custom_banners', JSON.stringify(updated))
-    window.dispatchEvent(new Event('storage'))
-    toast.success('تمت إضافة البنر الإعلاني بنجاح')
-    setBannerTitle('')
-    setBannerDesc('')
-    setBannerImage('')
   }
 
-  const handleDeleteBanner = (id: string) => {
-    const updated = banners.filter(b => b.id !== id)
-    setBanners(updated)
-    localStorage.setItem('faz3ah_custom_banners', JSON.stringify(updated))
-    window.dispatchEvent(new Event('storage'))
-    toast.success('تم حذف البنر الإعلاني')
+  // التعديل هنا: الحذف من Firebase
+  const handleDeleteBanner = async (id: string) => {
+    try {
+      await deleteDoc(doc(db, "banners", id))
+      toast.success('تم حذف البنر الإعلاني')
+    } catch (error) {
+      toast.error('فشل حذف البنر')
+    }
   }
 
-  function openAdd() {
-    setEditing(null)
-    setDialogOpen(true)
-  }
-
-  function openEdit(item: MenuItem) {
-    setEditing(item)
-    setDialogOpen(true)
-  }
+  function openAdd() { setEditing(null); setDialogOpen(true) }
+  function openEdit(item: MenuItem) { setEditing(item); setDialogOpen(true) }
 
   if (!authed) {
     return (
@@ -218,7 +199,6 @@ export default function AdminPage() {
         <Button onClick={openAdd} className="gap-1 rounded-full bg-gold font-700 text-gold-foreground hover:bg-gold/90"><Plus className="size-4" /> صنف جديد</Button>
       </header>
 
-      {/* قسم إدارة الأقسام الجديد */}
       <section className="m-4 rounded-xl border border-gold/20 bg-card p-4 shadow-sm">
         <div className="flex items-center gap-2 border-b pb-2 mb-3 border-border">
           <LayoutList className="size-5 text-primary" />
@@ -238,7 +218,6 @@ export default function AdminPage() {
         </div>
       </section>
 
-      {/* باقي الأقسام الأصلية كما هي تماماً */}
       <input type="file" ref={shopFileInputRef} onChange={handleShopImageUpload} accept="image/*" className="hidden" />
       
       <section className="m-4 rounded-xl border border-gold/20 bg-card p-4 shadow-sm">
