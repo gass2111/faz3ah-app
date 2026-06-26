@@ -26,14 +26,17 @@ export function CartSheet({
     const lines = cart
       .map(
         (l) =>
-          `${l.name} x ${l.quantity} = ${(l.price * l.quantity).toFixed(2)} د.أ`,
+          `${l.name} عدد (${l.quantity}) \n` +
+          `سعر الحبة ${l.price} قرش \n` +
+          `السعر الاجمالي ${(l.price * l.quantity).toFixed(2)} د.أ\n`
       )
       .join('\n')
-    return (
-      `طلب جديد من تطبيق فزعة 🚨\n` +
+      
+  return (
+      `طلب جديد من تطبيق فزعة  ` + "\n" +
       `--------------------\n` +
       `${lines}\n` +
-      `--------------------\n` +
+      `_________________________\n` +
       `المجموع الإجمالي: ${totalPrice.toFixed(2)} د.أ\n` +
       `العنوان: ${address.trim()}\n` +
       `ملاحظات إضافية: ${notes.trim() || 'لا يوجد'}`
