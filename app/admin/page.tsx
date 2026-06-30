@@ -84,17 +84,31 @@ export default function AdminPage() {
     }
   }
 
-  function handleSave(item: MenuItem) {
+async function handleSave(item: MenuItem) {
+    // 1. تعريف المعرف للصنف
     const itemToSave = { ...item, id: item.id || `item_${Date.now()}` };
-    if (editing) {
-      updateItem(itemToSave);
-      toast.success('تم تحديث الصنف بنجاح');
-    } else {
-      addItem(itemToSave);
-      toast.success('تمت إضافة الصنف بنجاح');
+    
+    try {
+      toast.loading('جاري الحفظ...');
+      
+      // 2. استخدام الدوال اللي بتعرف تحكي مع Firebase
+      if (editing) {
+        await updateItem(itemToSave); // تأكد أن updateItem مستوردة من useMenu
+        toast.success('تم تحديث الصنف بنجاح');
+      } else {
+        await addItem(itemToSave); // تأكد أن addItem مستوردة من useMenu
+        toast.success('تمت إضافة الصنف بنجاح');
+      }
+      
+      // 3. إغلاق النافذة بعد التأكد من الحفظ
+      setEditing(null);
+      setDialogOpen(false);
+      toast.dismiss();
+    } catch (error) {
+      toast.dismiss();
+      toast.error('حدث خطأ أثناء الحفظ');
+      console.error(error);
     }
-    setEditing(null);
-    setDialogOpen(false);
   }
 
   function toggleVisibility(item: MenuItem) {
@@ -310,8 +324,17 @@ export default function AdminPage() {
                   <div className="flex gap-1">
                     <Button size="icon" variant={isAvailable ? "outline" : "default"} className={`size-8 ${!isAvailable ? 'bg-primary text-primary-foreground' : ''}`} onClick={() => toggleVisibility(item)}>{isAvailable ? <Eye className="size-4" /> : <EyeOff className="size-4" />}</Button>
                     <Button size="icon" variant="outline" className="size-8" onClick={() => openEdit(item)}><Pencil className="size-4" /></Button>
-                    <Button size="icon" variant="outline" className="size-8 text-destructive hover:bg-destructive hover:text-white" onClick={() => { removeItem(item.id); toast.success('تم حذف الصنف') }}><Trash2 className="size-4" /></Button>
-                  </div>
+<Button 
+  size="icon" 
+  variant="outline" 
+  className="size-8 text-destructive hover:bg-destructive hover:text-white" 
+  onClick={async () => { 
+    await removeItem(item.id); 
+    toast.success('تم حذف الصنف'); 
+  }}
+>
+  <Trash2 className="size-4" />
+</Button>                  </div>
                 </div>
               </div>
             </li>
