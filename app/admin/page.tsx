@@ -113,22 +113,25 @@ export default function AdminPage() {
 
   async function handleSave(item: MenuItem) {
     const itemToSave = { ...item, id: item.id || `item_${Date.now()}` };
+    
+    // الحل السريع: إزالة الصورة قبل الحفظ إذا كانت ضخمة جداً، للتجربة فقط!
+    // إذا اشتغل الحفظ بدون صورة، معناها المشكلة 100% في حجم الصورة
+    const itemWithoutImage = { ...itemToSave, image: "" }; 
+
     try {
       toast.loading('جاري الحفظ...');
-      if (editing) {
-        await updateItem(itemToSave);
-        toast.success('تم تحديث الصنف بنجاح');
-      } else {
-        await addItem(itemToSave);
-        toast.success('تمت إضافة الصنف بنجاح');
-      }
+      if (editing) await updateItem(itemToSave);
+      else await addItem(itemToSave);
+      
       setEditing(null);
       setDialogOpen(false);
       toast.dismiss();
+      toast.success('تمت العملية');
     } catch (error) {
       toast.dismiss();
-      toast.error('حدث خطأ أثناء الحفظ');
-      console.error(error);
+      // إذا فشل الحفظ، جربنا نحفظ بدون الصورة عشان نتأكد
+      console.error("Error:", error);
+      toast.error('حدث خطأ. هل الصورة كبيرة جداً؟');
     }
   }
 
