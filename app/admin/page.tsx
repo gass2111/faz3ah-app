@@ -131,7 +131,7 @@ async function handleSave(item: MenuItem) {
         canvas.height = img.height * scaleSize
         const ctx = canvas.getContext('2d')
         ctx?.drawImage(img, 0, 0, canvas.width, canvas.height)
-        const base64String = canvas.toDataURL('image/jpeg', 0.6)
+        const base64String = canvas.toDataURL('image/jpeg', 0.3)
         const updatedImages = { ...shopImages, [uploadingShopId]: base64String }
         setShopImages(updatedImages)
         localStorage.setItem('faz3ah_shop_images', JSON.stringify(updatedImages))
@@ -162,7 +162,7 @@ async function handleSave(item: MenuItem) {
         canvas.height = img.height * scaleSize
         const ctx = canvas.getContext('2d')
         ctx?.drawImage(img, 0, 0, canvas.width, canvas.height)
-        setBannerImage(canvas.toDataURL('image/jpeg', 0.7))
+        setBannerImage(canvas.toDataURL('image/jpeg', 0.3))
       }
       img.src = event.target?.result as string
     }
