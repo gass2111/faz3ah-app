@@ -43,6 +43,33 @@ export default function AdminPage() {
   const [categories, setCategories] = useState<string[]>(['مشروبات', 'حلويات', 'وجبات رئيسية'])
   const [newCat, setNewCat] = useState('')
 
+  // دالة معالجة الصور الموحدة
+  const processImage = (file: File, callback: (base64: string) => void) => {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        const MAX_WIDTH = 500;
+        let width = img.width;
+        let height = img.height;
+        if (width > MAX_WIDTH) {
+          height *= MAX_WIDTH / width;
+          width = MAX_WIDTH;
+        }
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        ctx!.fillStyle = '#FFFFFF';
+        ctx!.fillRect(0, 0, canvas.width, canvas.height);
+        ctx!.drawImage(img, 0, 0, width, height);
+        callback(canvas.toDataURL('image/jpeg', 0.4));
+      };
+      img.src = e.target?.result as string;
+    };
+    reader.readAsDataURL(file);
+  };
+
   useEffect(() => {
     const unsub = onSnapshot(collection(db, "banners"), (snapshot) => {
       const bannersData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as CustomBanner))
@@ -84,23 +111,17 @@ export default function AdminPage() {
     }
   }
 
-async function handleSave(item: MenuItem) {
-    // 1. تعريف المعرف للصنف
+  async function handleSave(item: MenuItem) {
     const itemToSave = { ...item, id: item.id || `item_${Date.now()}` };
-    
     try {
       toast.loading('جاري الحفظ...');
-      
-      // 2. استخدام الدوال اللي بتعرف تحكي مع Firebase
       if (editing) {
-        await updateItem(itemToSave); // تأكد أن updateItem مستوردة من useMenu
+        await updateItem(itemToSave);
         toast.success('تم تحديث الصنف بنجاح');
       } else {
-        await addItem(itemToSave); // تأكد أن addItem مستوردة من useMenu
+        await addItem(itemToSave);
         toast.success('تمت إضافة الصنف بنجاح');
       }
-      
-      // 3. إغلاق النافذة بعد التأكد من الحفظ
       setEditing(null);
       setDialogOpen(false);
       toast.dismiss();
@@ -120,27 +141,13 @@ async function handleSave(item: MenuItem) {
   const handleShopImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (!file || !uploadingShopId) return
-    const reader = new FileReader()
-    reader.onload = (event) => {
-      const img = new Image()
-      img.onload = () => {
-        const canvas = document.createElement('canvas')
-        const MAX_WIDTH = 600
-        const scaleSize = MAX_WIDTH / img.width
-        canvas.width = MAX_WIDTH
-        canvas.height = img.height * scaleSize
-        const ctx = canvas.getContext('2d')
-        ctx?.drawImage(img, 0, 0, canvas.width, canvas.height)
-        const base64String = canvas.toDataURL('image/jpeg', 0.3)
-        const updatedImages = { ...shopImages, [uploadingShopId]: base64String }
+    processImage(file, (base64) => {
+        const updatedImages = { ...shopImages, [uploadingShopId]: base64 }
         setShopImages(updatedImages)
         localStorage.setItem('faz3ah_shop_images', JSON.stringify(updatedImages))
         toast.success('تم تحديث شعار المحل بنجاح')
         setUploadingShopId(null)
-      }
-      img.src = event.target?.result as string
-    }
-    reader.readAsDataURL(file)
+    })
   }
 
   function triggerShopUpload(shopId: string) {
@@ -151,22 +158,7 @@ async function handleSave(item: MenuItem) {
   const handleBannerImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (!file) return
-    const reader = new FileReader()
-    reader.onload = (event) => {
-      const img = new Image()
-      img.onload = () => {
-        const canvas = document.createElement('canvas')
-        const MAX_WIDTH = 800
-        const scaleSize = MAX_WIDTH / img.width
-        canvas.width = MAX_WIDTH
-        canvas.height = img.height * scaleSize
-        const ctx = canvas.getContext('2d')
-        ctx?.drawImage(img, 0, 0, canvas.width, canvas.height)
-        setBannerImage(canvas.toDataURL('image/jpeg', 0.3))
-      }
-      img.src = event.target?.result as string
-    }
-    reader.readAsDataURL(file)
+    processImage(file, setBannerImage)
   }
 
   const handleAddBanner = async (e: React.FormEvent) => {
@@ -324,17 +316,18 @@ async function handleSave(item: MenuItem) {
                   <div className="flex gap-1">
                     <Button size="icon" variant={isAvailable ? "outline" : "default"} className={`size-8 ${!isAvailable ? 'bg-primary text-primary-foreground' : ''}`} onClick={() => toggleVisibility(item)}>{isAvailable ? <Eye className="size-4" /> : <EyeOff className="size-4" />}</Button>
                     <Button size="icon" variant="outline" className="size-8" onClick={() => openEdit(item)}><Pencil className="size-4" /></Button>
-<Button 
-  size="icon" 
-  variant="outline" 
-  className="size-8 text-destructive hover:bg-destructive hover:text-white" 
-  onClick={async () => { 
-    await removeItem(item.id); 
-    toast.success('تم حذف الصنف'); 
-  }}
->
-  <Trash2 className="size-4" />
-</Button>                  </div>
+                    <Button 
+                      size="icon" 
+                      variant="outline" 
+                      className="size-8 text-destructive hover:bg-destructive hover:text-white" 
+                      onClick={async () => { 
+                        await removeItem(item.id); 
+                        toast.success('تم حذف الصنف'); 
+                      }}
+                    >
+                      <Trash2 className="size-4" />
+                    </Button>
+                  </div>
                 </div>
               </div>
             </li>
