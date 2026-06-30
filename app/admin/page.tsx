@@ -14,7 +14,6 @@ import { useMenu } from '@/lib/use-menu'
 import { CATEGORY_LABELS, SHOPS, type MenuItem, type ShopId } from '@/lib/menu-data'
 import { db } from "@/lib/firebase"
 import { collection, addDoc, deleteDoc, doc, onSnapshot } from "firebase/firestore"
-import imageCompression from 'browser-image-compression'
 
 const ADMIN_PASSWORD = 'omar000999'
 
@@ -107,28 +106,27 @@ export default function AdminPage() {
   const handleShopImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (!file || !uploadingShopId) return
-    
-    try {
-      toast.loading('جاري ضغط الصورة...')
-      const options = { maxSizeMB: 0.2, maxWidthOrHeight: 800, useWebWorker: true }
-      const compressedFile = await imageCompression(file, options)
-      
-      const reader = new FileReader()
-      reader.onloadend = () => {
-        const base64String = reader.result as string
+    const reader = new FileReader()
+    reader.onload = (event) => {
+      const img = new Image()
+      img.onload = () => {
+        const canvas = document.createElement('canvas')
+        const MAX_WIDTH = 600
+        const scaleSize = MAX_WIDTH / img.width
+        canvas.width = MAX_WIDTH
+        canvas.height = img.height * scaleSize
+        const ctx = canvas.getContext('2d')
+        ctx?.drawImage(img, 0, 0, canvas.width, canvas.height)
+        const base64String = canvas.toDataURL('image/jpeg', 0.6)
         const updatedImages = { ...shopImages, [uploadingShopId]: base64String }
         setShopImages(updatedImages)
         localStorage.setItem('faz3ah_shop_images', JSON.stringify(updatedImages))
-        toast.dismiss()
         toast.success('تم تحديث شعار المحل بنجاح')
         setUploadingShopId(null)
       }
-      reader.readAsDataURL(compressedFile)
-    } catch (error) {
-      toast.dismiss()
-      toast.error('فشل معالجة الصورة')
-      setUploadingShopId(null)
+      img.src = event.target?.result as string
     }
+    reader.readAsDataURL(file)
   }
 
   function triggerShopUpload(shopId: string) {
@@ -139,15 +137,22 @@ export default function AdminPage() {
   const handleBannerImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (!file) return
-    try {
-      const options = { maxSizeMB: 0.2, maxWidthOrHeight: 800, useWebWorker: true }
-      const compressedFile = await imageCompression(file, options)
-      const reader = new FileReader()
-      reader.onloadend = () => { setBannerImage(reader.result as string) }
-      reader.readAsDataURL(compressedFile)
-    } catch (error) {
-      toast.error('فشل ضغط صورة البنر')
+    const reader = new FileReader()
+    reader.onload = (event) => {
+      const img = new Image()
+      img.onload = () => {
+        const canvas = document.createElement('canvas')
+        const MAX_WIDTH = 800
+        const scaleSize = MAX_WIDTH / img.width
+        canvas.width = MAX_WIDTH
+        canvas.height = img.height * scaleSize
+        const ctx = canvas.getContext('2d')
+        ctx?.drawImage(img, 0, 0, canvas.width, canvas.height)
+        setBannerImage(canvas.toDataURL('image/jpeg', 0.7))
+      }
+      img.src = event.target?.result as string
     }
+    reader.readAsDataURL(file)
   }
 
   const handleAddBanner = async (e: React.FormEvent) => {
