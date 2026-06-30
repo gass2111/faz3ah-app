@@ -27,7 +27,7 @@ export function CartSheet({
       .map(
         (l) =>
           `${l.name} عدد (${l.quantity}) \n` +
-          `سعر الحبة ${l.price} قرش \n` +
+          `سعر الحبة ${l.price} دينار \n` +
           `السعر الاجمالي ${(l.price * l.quantity).toFixed(2)} د.أ\n`
       )
       .join('\n')

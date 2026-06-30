@@ -12,8 +12,9 @@ import { Badge } from '@/components/ui/badge'
 import { ItemFormDialog } from '@/components/item-form-dialog'
 import { useMenu } from '@/lib/use-menu'
 import { CATEGORY_LABELS, SHOPS, type MenuItem, type ShopId } from '@/lib/menu-data'
-import { db } from "@/lib/firebase" // تأكد من استيراد db هنا
+import { db } from "@/lib/firebase"
 import { collection, addDoc, deleteDoc, doc, onSnapshot } from "firebase/firestore"
+import imageCompression from 'browser-image-compression'
 
 const ADMIN_PASSWORD = 'omar000999'
 
@@ -43,7 +44,6 @@ export default function AdminPage() {
   const [categories, setCategories] = useState<string[]>(['مشروبات', 'حلويات', 'وجبات رئيسية'])
   const [newCat, setNewCat] = useState('')
 
-  // تحميل البنرات من Firebase فوراً
   useEffect(() => {
     const unsub = onSnapshot(collection(db, "banners"), (snapshot) => {
       const bannersData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as CustomBanner))
@@ -104,19 +104,31 @@ export default function AdminPage() {
     toast.info(currentStatus ? `تم إخفاء ${item.name}` : `تم إظهار ${item.name}`)
   }
 
-  const handleShopImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleShopImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (!file || !uploadingShopId) return
-    const reader = new FileReader()
-    reader.onloadend = () => {
-      const base64String = reader.result as string
-      const updatedImages = { ...shopImages, [uploadingShopId]: base64String }
-      setShopImages(updatedImages)
-      localStorage.setItem('faz3ah_shop_images', JSON.stringify(updatedImages))
-      toast.success('تم تحديث شعار المحل بنجاح')
+    
+    try {
+      toast.loading('جاري ضغط الصورة...')
+      const options = { maxSizeMB: 0.2, maxWidthOrHeight: 800, useWebWorker: true }
+      const compressedFile = await imageCompression(file, options)
+      
+      const reader = new FileReader()
+      reader.onloadend = () => {
+        const base64String = reader.result as string
+        const updatedImages = { ...shopImages, [uploadingShopId]: base64String }
+        setShopImages(updatedImages)
+        localStorage.setItem('faz3ah_shop_images', JSON.stringify(updatedImages))
+        toast.dismiss()
+        toast.success('تم تحديث شعار المحل بنجاح')
+        setUploadingShopId(null)
+      }
+      reader.readAsDataURL(compressedFile)
+    } catch (error) {
+      toast.dismiss()
+      toast.error('فشل معالجة الصورة')
       setUploadingShopId(null)
     }
-    reader.readAsDataURL(file)
   }
 
   function triggerShopUpload(shopId: string) {
@@ -124,15 +136,20 @@ export default function AdminPage() {
     setTimeout(() => { shopFileInputRef.current?.click() }, 50)
   }
 
-  const handleBannerImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleBannerImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (!file) return
-    const reader = new FileReader()
-    reader.onloadend = () => { setBannerImage(reader.result as string) }
-    reader.readAsDataURL(file)
+    try {
+      const options = { maxSizeMB: 0.2, maxWidthOrHeight: 800, useWebWorker: true }
+      const compressedFile = await imageCompression(file, options)
+      const reader = new FileReader()
+      reader.onloadend = () => { setBannerImage(reader.result as string) }
+      reader.readAsDataURL(compressedFile)
+    } catch (error) {
+      toast.error('فشل ضغط صورة البنر')
+    }
   }
 
-  // التعديل هنا: الحفظ في Firebase
   const handleAddBanner = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!bannerImage) {
@@ -156,7 +173,6 @@ export default function AdminPage() {
     }
   }
 
-  // التعديل هنا: الحذف من Firebase
   const handleDeleteBanner = async (id: string) => {
     try {
       await deleteDoc(doc(db, "banners", id))
