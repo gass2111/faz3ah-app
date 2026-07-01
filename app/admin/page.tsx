@@ -43,14 +43,15 @@ export default function AdminPage() {
   const [categories, setCategories] = useState<string[]>(['مشروبات', 'حلويات', 'وجبات رئيسية'])
   const [newCat, setNewCat] = useState('')
 
-  // دالة معالجة الصور الموحدة
   const processImage = (file: File, callback: (base64: string) => void) => {
     const reader = new FileReader();
     reader.onload = (e) => {
       const img = new Image();
       img.onload = () => {
         const canvas = document.createElement('canvas');
-        const MAX_WIDTH = 500;
+        
+        // تصغير العرض إلى 400 بدلاً من 500 لتقليل الحجم
+        const MAX_WIDTH = 400; 
         let width = img.width;
         let height = img.height;
         if (width > MAX_WIDTH) {
@@ -59,11 +60,14 @@ export default function AdminPage() {
         }
         canvas.width = width;
         canvas.height = height;
+        
         const ctx = canvas.getContext('2d');
         ctx!.fillStyle = '#FFFFFF';
         ctx!.fillRect(0, 0, canvas.width, canvas.height);
         ctx!.drawImage(img, 0, 0, width, height);
-        callback(canvas.toDataURL('image/jpeg', 0.4));
+        
+        // تقليل الجودة إلى 0.2 بدلاً من 0.4 لضمان حجم أصغر جداً
+        callback(canvas.toDataURL('image/jpeg', 0.2)); 
       };
       img.src = e.target?.result as string;
     };
