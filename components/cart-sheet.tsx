@@ -10,6 +10,14 @@ import { Textarea } from '@/components/ui/textarea'
 import { Separator } from '@/components/ui/separator'
 import { useCart } from '@/lib/use-cart'
 import { STORE_PHONE } from '@/lib/menu-data'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
 
 export function CartSheet({
   open,
@@ -21,6 +29,7 @@ export function CartSheet({
   const { cart, setQuantity, removeFromCart, clearCart, totalPrice, totalItems } = useCart()
   const [address, setAddress] = useState('')
   const [notes, setNotes] = useState('')
+  const [showConfirm, setShowConfirm] = useState(false)
 
   function buildMessage() {
     const lines = cart
@@ -32,7 +41,7 @@ export function CartSheet({
       )
       .join('\n')
       
-  return (
+    return (
       `طلب جديد من تطبيق فزعة  ` + "\n" +
       `--------------------\n` +
       `${lines}\n` +
@@ -43,7 +52,7 @@ export function CartSheet({
     )
   }
 
-   function handleConfirm() {
+  function handleConfirm() {
     if (cart.length === 0) {
       toast.error('السلة فارغة، أضف بعض الأصناف أولاً')
       return
@@ -52,20 +61,26 @@ export function CartSheet({
       toast.error('الرجاء إدخال عنوان التوصيل')
       return
     }
-
-    // تنظيف الرقم من أي شيء غير الأرقام
+    setShowConfirm(true)
+  }
+function executeOrder() {
     const phone = STORE_PHONE.replace(/[^0-9]/g, '');
-    
-    // بناء الرابط المباشر الصحيح
-    // الصيغة: https://wa.me/962780943795?text=...
     const url = `https://wa.me/${phone}?text=${encodeURIComponent(buildMessage())}`
     
+    // 1. فتح الواتساب
     window.open(url, '_blank')
-    toast.success('تم تجهيز طلبك وفتح الواتساب')
+    
+    // 2. تفريغ السلة تلقائياً بعد الإرسال
+    clearCart()
+    
+    // 3. إغلاق السلة والنافذة
+    toast.success('تم إرسال الطلب وتفريغ السلة')
+    setShowConfirm(false)
+    onClose() // إغلاق الـ CartSheet بالكامل
   }
+
   return (
     <>
-      {/* Overlay */}
       <div
         className={`fixed inset-0 z-40 bg-foreground/40 transition-opacity ${
           open ? 'opacity-100' : 'pointer-events-none opacity-0'
@@ -73,7 +88,6 @@ export function CartSheet({
         onClick={onClose}
         aria-hidden="true"
       />
-      {/* Panel */}
       <aside
         className={`fixed inset-y-0 left-0 z-50 flex w-full max-w-md flex-col bg-background shadow-2xl transition-transform duration-300 ${
           open ? 'translate-x-0' : '-translate-x-full'
@@ -86,13 +100,7 @@ export function CartSheet({
             <ShoppingBag className="size-5 text-gold" />
             <h2 className="font-heading text-lg font-700">سلة المشتريات</h2>
           </div>
-          <Button
-            size="icon"
-            variant="ghost"
-            onClick={onClose}
-            className="size-9 text-primary-foreground hover:bg-primary-foreground/10 hover:text-primary-foreground"
-            aria-label="إغلاق"
-          >
+          <Button size="icon" variant="ghost" onClick={onClose} className="size-9 text-primary-foreground hover:bg-primary-foreground/10 hover:text-primary-foreground">
             <X className="size-5" />
           </Button>
         </header>
@@ -102,60 +110,24 @@ export function CartSheet({
             <div className="flex h-full flex-col items-center justify-center gap-3 text-center text-muted-foreground">
               <ShoppingBag className="size-12 opacity-40" />
               <p className="font-600">سلتك فارغة</p>
-              <p className="text-sm">أضف أصنافك المفضلة من اfunction handleConfirm()لمنيو</p>
             </div>
           ) : (
             <ul className="flex flex-col gap-3">
               {cart.map((l) => (
-                <li
-                  key={l.id}
-                  className="flex gap-3 rounded-xl border border-border bg-card p-2"
-                >
+                <li key={l.id} className="flex gap-3 rounded-xl border border-border bg-card p-2">
                   <div className="relative h-16 w-16 shrink-0 overflow-hidden rounded-lg">
-                    <Image
-                      src={l.image || '/placeholder.svg'}
-                      alt={l.name}
-                      fill
-                      className="object-cover"
-                      sizes="64px"
-                    />
+                    <Image src={l.image || '/placeholder.svg'} alt={l.name} fill className="object-cover" sizes="64px" />
                   </div>
                   <div className="flex min-w-0 flex-1 flex-col">
                     <div className="flex items-start justify-between gap-2">
-                      <h3 className="font-700 leading-tight text-card-foreground">
-                        {l.name}
-                      </h3>
-                      <button
-                        onClick={() => removeFromCart(l.id)}
-                        className="text-muted-foreground hover:text-destructive"
-                        aria-label={`حذف ${l.name}`}
-                      >
-                        <Trash2 className="size-4" />
-                      </button>
+                      <h3 className="font-700 leading-tight text-card-foreground">{l.name}</h3>
+                      <button onClick={() => removeFromCart(l.id)} className="text-muted-foreground hover:text-destructive"><Trash2 className="size-4" /></button>
                     </div>
-                    <span className="text-sm font-700 text-primary">
-                      {(l.price * l.quantity).toFixed(2)} د.أ
-                    </span>
+                    <span className="text-sm font-700 text-primary">{(l.price * l.quantity).toFixed(2)} د.أ</span>
                     <div className="mt-auto flex items-center gap-2 pt-1">
-                      <Button
-                        size="icon"
-                        variant="outline"
-                        className="size-7 rounded-full"
-                        onClick={() => setQuantity(l.id, l.quantity - 1)}
-                        aria-label="إنقاص"
-                      >
-                        <Minus className="size-3.5" />
-                      </Button>
+                      <Button size="icon" variant="outline" className="size-7 rounded-full" onClick={() => setQuantity(l.id, l.quantity - 1)}><Minus className="size-3.5" /></Button>
                       <span className="w-6 text-center font-700">{l.quantity}</span>
-                      <Button
-                        size="icon"
-                        variant="outline"
-                        className="size-7 rounded-full"
-                        onClick={() => setQuantity(l.id, l.quantity + 1)}
-                        aria-label="زيادة"
-                      >
-                        <Plus className="size-3.5" />
-                      </Button>
+                      <Button size="icon" variant="outline" className="size-7 rounded-full" onClick={() => setQuantity(l.id, l.quantity + 1)}><Plus className="size-3.5" /></Button>
                     </div>
                   </div>
                 </li>
@@ -167,28 +139,12 @@ export function CartSheet({
             <div className="mt-5 flex flex-col gap-4">
               <Separator />
               <div className="flex flex-col gap-2">
-                <Label htmlFor="address" className="font-700">
-                  عنوان التوصيل <span className="text-destructive">*</span>
-                </Label>
-                <Textarea
-                  id="address"
-                  value={address}
-                  onChange={(e) => setAddress(e.target.value)}
-                  placeholder="اكتب عنوانك بالتفصيل (المنطقة، الشارع، رقم المبنى)"
-                  className="min-h-20 resize-none bg-card"
-                />
+                <Label htmlFor="address" className="font-700">عنوان التوصيل <span className="text-destructive">*</span></Label>
+                <Textarea id="address" value={address} onChange={(e) => setAddress(e.target.value)} placeholder="اكتب عنوانك بالتفصيل..." className="min-h-20 resize-none bg-card" />
               </div>
               <div className="flex flex-col gap-2">
-                <Label htmlFor="notes" className="font-700">
-                  ملاحظات خاصة <span className="text-muted-foreground">(اختياري)</span>
-                </Label>
-                <Textarea
-                  id="notes"
-                  value={notes}
-                  onChange={(e) => setNotes(e.target.value)}
-                  placeholder="مثال: بدون بصل، إضافة صوص حار..."
-                  className="min-h-16 resize-none bg-card"
-                />
+                <Label htmlFor="notes" className="font-700">ملاحظات خاصة <span className="text-muted-foreground">(اختياري)</span></Label>
+                <Textarea id="notes" value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="مثال: بدون بصل..." className="min-h-16 resize-none bg-card" />
               </div>
             </div>
           )}
@@ -197,28 +153,29 @@ export function CartSheet({
         {cart.length > 0 && (
           <footer className="border-t border-border bg-card p-4">
             <div className="mb-3 flex items-center justify-between">
-              <span className="font-600 text-muted-foreground">
-                المجموع ({totalItems} صنف)
-              </span>
-              <span className="font-heading text-2xl font-900 text-primary">
-                {totalPrice.toFixed(2)} د.أ
-              </span>
+              <span className="font-600 text-muted-foreground">المجموع ({totalItems} صنف)</span>
+              <span className="font-heading text-2xl font-900 text-primary">{totalPrice.toFixed(2)} د.أ</span>
             </div>
-            <Button
-              onClick={handleConfirm}
-              className="h-12 w-full gap-2 rounded-full bg-primary text-base font-700 text-primary-foreground hover:bg-primary/90"
-            >
+            <Button onClick={handleConfirm} className="h-12 w-full gap-2 rounded-full bg-primary text-base font-700 text-primary-foreground hover:bg-primary/90">
               تأكيد الطلب عبر الواتساب
             </Button>
-            <button
-              onClick={clearCart}
-              className="mt-2 w-full text-sm text-muted-foreground hover:text-destructive"
-            >
-              تفريغ السلة
-            </button>
           </footer>
         )}
       </aside>
+
+      {/* نافذة التأكيد الكبيرة في وسط الشاشة */}
+      <Dialog open={showConfirm} onOpenChange={setShowConfirm}>
+        <DialogContent className="max-w-[90%] rounded-2xl text-right" dir="rtl">
+          <DialogHeader>
+            <DialogTitle>تأكيد إرسال الطلب</DialogTitle>
+            <DialogDescription>هل أنت متأكد من رغبتك في إرسال هذا الطلب عبر الواتساب؟ يرجى مراجعة تفاصيل طلبك وعنوانك قبل التأكيد.</DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="flex-col gap-2 sm:flex-row">
+            <Button variant="outline" onClick={() => setShowConfirm(false)}>إلغاء</Button>
+            <Button onClick={executeOrder} className="bg-primary hover:bg-primary/90">نعم، إرسال الطلب</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </>
   )
 }
