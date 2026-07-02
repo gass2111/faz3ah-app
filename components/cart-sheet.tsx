@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import Image from 'next/image'
-import { Minus, Plus, Trash2, ShoppingBag, X } from 'lucide-react'
+import { Minus, Plus, Trash2, ShoppingBag, ArrowRight } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
@@ -63,20 +63,16 @@ export function CartSheet({
     }
     setShowConfirm(true)
   }
-function executeOrder() {
+
+  function executeOrder() {
     const phone = STORE_PHONE.replace(/[^0-9]/g, '');
     const url = `https://wa.me/${phone}?text=${encodeURIComponent(buildMessage())}`
     
-    // 1. فتح الواتساب
     window.open(url, '_blank')
-    
-    // 2. تفريغ السلة تلقائياً بعد الإرسال
     clearCart()
-    
-    // 3. إغلاق السلة والنافذة
     toast.success('تم إرسال الطلب وتفريغ السلة')
     setShowConfirm(false)
-    onClose() // إغلاق الـ CartSheet بالكامل
+    onClose()
   }
 
   return (
@@ -96,14 +92,21 @@ function executeOrder() {
         aria-label="سلة المشتريات"
       >
         <header className="flex items-center justify-between border-b border-border bg-primary px-4 py-4">
-          <div className="flex items-center gap-2 text-primary-foreground">
-            <ShoppingBag className="size-5 text-gold" />
-            <h2 className="font-heading text-lg font-700">سلة المشتريات</h2>
-          </div>
-          <Button size="icon" variant="ghost" onClick={onClose} className="size-9 text-primary-foreground hover:bg-primary-foreground/10 hover:text-primary-foreground">
-            <X className="size-5" />
-          </Button>
-        </header>
+  <div className="flex items-center gap-2 text-primary-foreground">
+    <ShoppingBag className="size-5 text-gold" />
+    <h2 className="font-heading text-lg font-700">سلة المشتريات</h2>
+  </div>
+  
+  {/* هنا التعديل: Button بيحتوي على كلمة وسهم */}
+  <Button
+    variant="ghost"
+    onClick={onClose}
+    className="gap-2 rounded-full px-4 text-primary-foreground hover:bg-primary-foreground/10 hover:text-primary-foreground"
+  >
+    <span className="font-700">عودة للمحلات</span>
+    <ArrowRight className="size-4" />
+  </Button>
+</header>
 
         <div className="flex-1 overflow-y-auto p-4">
           {cart.length === 0 ? (
@@ -163,7 +166,6 @@ function executeOrder() {
         )}
       </aside>
 
-      {/* نافذة التأكيد الكبيرة في وسط الشاشة */}
       <Dialog open={showConfirm} onOpenChange={setShowConfirm}>
         <DialogContent className="max-w-[90%] rounded-2xl text-right" dir="rtl">
           <DialogHeader>
